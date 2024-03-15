@@ -1,0 +1,81 @@
+function Sheet_WP(e) {
+
+  var sheet = e.source.getActiveSheet();
+  
+  //replace CPT with your sheet name
+  if(sheet.getName() == 'CPT'){
+  var range = e.range;
+  var affectedRow = range.getRow();
+
+  var postId = sheet.getRange(affectedRow, 1).getValue();
+  var post_title = sheet.getRange(affectedRow, 2).getValue();
+  var post_content = sheet.getRange(affectedRow, 3).getValue();
+  var post_email = sheet.getRange(affectedRow, 4).getValue();
+  var post_phone = sheet.getRange(affectedRow, 5).getValue();
+  var post_city = sheet.getRange(affectedRow, 6).getValue();
+
+  //replace API URL
+    var apiUrl = 'https://--------------/wp-json/wp/v2/leads';
+      var postData = {
+        title: post_title,
+        content: post_content,
+        city: post_city,
+        status: 'publish',
+        meta: {
+        "email": post_email,
+        "phone": post_phone
+        }
+      };
+
+      var params = 
+      {
+      'method': 'POST',
+      'headers':
+        {
+        //replace username & password..
+        'Authorization' : 'Basic ' + Utilities.base64Encode('----------------'),
+        },
+      'contentType': 'application/json',
+      'payload': JSON.stringify(postData),
+      'muteHttpExceptions': true,
+      }
+
+    if (postId === '') 
+    {
+      var InsertAction = UrlFetchApp.fetch(apiUrl, params);
+      var responseCode = InsertAction.getResponseCode();
+
+      if (responseCode === 201) {
+        var responseContent = JSON.parse(InsertAction.getContentText());
+        var newPostId = responseContent.id;
+        sheet.getRange(affectedRow, 1).setValue(newPostId);
+        Logger.log('Post created with ID: ' + newPostId);
+        sheet.getRange(affectedRow, 8).setValue("Created: " + Date());
+
+      } else
+      {
+        Logger.log('Failed to create the post. Response code: ' + responseCode);
+        sheet.getRange(affectedRow, 8).setValue("Failed: " + responseCode);
+      }
+    }
+    else
+    {
+      var UpdateURL = apiUrl + '/' + postId;
+      var UpdateAction = UrlFetchApp.fetch(UpdateURL, params);
+      var UpdateResponse = UpdateAction.getResponseCode();
+      if(UpdateResponse===200)
+      {
+        sheet.getRange(affectedRow, 8).setValue("Updated: " + Date());
+      }
+      else
+      {
+        sheet.getRange(affectedRow, 8).setValue("Failed: " + UpdateResponse);
+      }
+    }
+  }
+}
+
+function doGet() {
+  return ContentService.createTextOutput(getSheetDataAsJSON())
+    .setMimeType(ContentService.MimeType.JSON);
+}
